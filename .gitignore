@@ -1,0 +1,28 @@
+# Third-party temporary downloads and extracted old mod
+windranger_gt.zip
+extracted_mod/
+
+# Arcana raw extracted dumps (mod uses Classic Windrunner)
+dota2_extracted/**/windrunner_arcana/**
+
+# Intermediate debug files and raw dumps
+extracted/*
+!extracted/archer_bow1_orig.dmx
+!extracted/archer_warka3_orig.dmx
+!extracted/archer_arrowb2.dmx
+!extracted/archer_teteva.dmx
+!extracted/archer_bow1.dmx
+!extracted/archer_warka3.dmx
+
+# Blender & temporary images
+*.blend
+*.blend1
+*.png
+*.npz
+
+# Python and IDE cache
+__pycache__/
+*.pyc
+*.pyo
+.vscode/
+.idea/
