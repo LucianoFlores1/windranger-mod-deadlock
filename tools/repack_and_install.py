@@ -11,14 +11,13 @@ GAME_VPK = DEADLOCK_ADDONS / "pak02_dir.vpk"
 
 DOTA_COMPILED = Path(r"C:\Program Files (x86)\Steam\steamapps\common\dota 2 beta\game\dota_addons\windrunner_classic\models\heroes_staging\archer\archer.vmdl_c")
 
-print("=== PASO 0: Actualizando archer.vmdl_c en custom_mod_source ===")
+print("=== PASO 0: Verificando archer.vmdl_c en custom_mod_source ===")
 if DOTA_COMPILED.exists():
     target_vmdl = CUSTOM_MOD / "models" / "heroes_staging" / "archer" / "archer.vmdl_c"
     shutil.copy2(DOTA_COMPILED, target_vmdl)
     print(f"[OK] archer.vmdl_c actualizado: {target_vmdl} ({target_vmdl.stat().st_size:,} bytes)")
 else:
-    print(f"[ERROR] No se encontró el modelo compilado en {DOTA_COMPILED}")
-    exit(1)
+    print(f"[AVISO] Usando archer.vmdl_c existente en custom_mod_source")
 
 print("\n=== PASO 1: Creando pak02_dir.vpk desde custom_mod_source ===")
 BUILD_VPK.parent.mkdir(parents=True, exist_ok=True)
@@ -30,28 +29,33 @@ print("\n=== PASO 2: Verificando contenido del paquete ===")
 pak_check = vpk.open(str(BUILD_VPK))
 count = 0
 found_model = False
-found_ui_vpk = False
+found_card = False
+found_owl = False
+
 for p in sorted(pak_check):
     count += 1
     if p == "models/heroes_staging/archer/archer.vmdl_c":
         found_model = True
         print(f" -> Modelo: {p} ({len(pak_check[p].read()):,} bytes)")
-    elif p == "maps/ui/hero_prefabs/archer.vpk":
-        found_ui_vpk = True
-        print(f" -> UI Prefab VPK: {p} ({len(pak_check[p].read()):,} bytes)")
+    elif p == "models/heroes_staging/grey_talon/grey_talon_owl.vmdl_c":
+        found_owl = True
+        print(f" -> Ultimate Halcón/Búho: {p} ({len(pak_check[p].read()):,} bytes)")
+    elif p == "panorama/images/heroes/archer_card_psd.vtex_c":
+        found_card = True
+        print(f" -> Hero Card Clásica: {p} ({len(pak_check[p].read()):,} bytes)")
 
 print(f"Total de archivos en VPK: {count}")
 assert found_model, "ERROR: archer.vmdl_c no encontrado en el paquete!"
-assert found_ui_vpk, "ERROR: archer.vpk no encontrado en el paquete!"
+assert found_owl, "ERROR: grey_talon_owl.vmdl_c no encontrado en el paquete!"
+assert found_card, "ERROR: archer_card_psd.vtex_c no encontrado en el paquete!"
 
 print("\n=== PASO 3: Copiando a directorio de addons de Deadlock ===")
 DEADLOCK_ADDONS.mkdir(parents=True, exist_ok=True)
 shutil.copy2(BUILD_VPK, GAME_VPK)
 print(f"[OK] Mod copiado exitosamente a: {GAME_VPK} ({GAME_VPK.stat().st_size:,} bytes)")
 
-print("\n=== PASO 4: Verificando otros mods en addons ===")
+print("\n=== PASO 4: Verificando addons en Deadlock ===")
 for item in DEADLOCK_ADDONS.iterdir():
     print(f" -> Addon: {item.name} ({item.stat().st_size:,} bytes)")
 
 print("\n[COMPLETADO EXITOSAMENTE]")
-
