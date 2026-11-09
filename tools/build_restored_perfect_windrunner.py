@@ -428,55 +428,78 @@ def build_body():
     group_map = {g.name: g for g in body_main.vertex_groups}
     vg_cR = group_map.get('clavicle_R') or body_main.vertex_groups.new(name='clavicle_R')
     vg_auR = group_map.get('arm_upper_R') or body_main.vertex_groups.new(name='arm_upper_R')
+    vg_alR = group_map.get('arm_lower_R') or body_main.vertex_groups.new(name='arm_lower_R')
     vg_cL = group_map.get('clavicle_L') or body_main.vertex_groups.new(name='clavicle_L')
     vg_auL = group_map.get('arm_upper_L') or body_main.vertex_groups.new(name='arm_upper_L')
+    vg_alL = group_map.get('arm_lower_L') or body_main.vertex_groups.new(name='arm_lower_L')
     vg_hL = group_map.get('hand_L') or body_main.vertex_groups.new(name='hand_L')
     vg_hR = group_map.get('hand_R') or body_main.vertex_groups.new(name='hand_R')
 
-    # Fix Right Shoulder & Bicep (removes lower-spine/opposite-shoulder pull that caused spiking when aiming)
-    r_sh_fixed = 0
+    # 1. Complete Right Arm Cleanup (Fixes ultimate arm deformation & spine/leg/pelvis tearing)
+    r_arm_fixed = 0
     for v in body_main.data.vertices:
-        if v.co.x < -0.15 and v.co.z > 1.25:
+        if v.co.x < -0.18 and v.co.z > 0.75:
             removed = 0.0
             for g_entry in list(v.groups):
                 g_name = body_main.vertex_groups[g_entry.group].name
-                if g_name in ['spine_0', 'spine_1', 'clavicle_L', 'head', 'neck_0']:
+                # Remove ANY torso, spine, pelvis, head, neck, leg, or opposite side bone from the arm!
+                if any(bad in g_name for bad in ['spine', 'pelvis', 'clavicle_L', 'head', 'neck', 'leg', '_L']):
                     removed += g_entry.weight
                     body_main.vertex_groups[g_entry.group].remove([v.index])
-            if removed > 0.01:
-                r_sh_fixed += 1
-                target = vg_cR if v.co.x > -0.28 else vg_auR
+                elif v.co.x <= -0.28 and 'clavicle' in g_name:
+                    removed += g_entry.weight
+                    body_main.vertex_groups[g_entry.group].remove([v.index])
+            if removed > 0.001:
+                r_arm_fixed += 1
+                if v.co.x < -0.47:
+                    target = vg_hR
+                elif v.co.x < -0.32:
+                    target = vg_alR
+                elif v.co.x > -0.26 and v.co.z > 1.25:
+                    target = vg_cR
+                else:
+                    target = vg_auR
                 try: cur = target.weight(v.index)
                 except: cur = 0.0
                 target.add([v.index], cur + removed, 'REPLACE')
-    print(f"[OK] Right shoulder verts cleaned: {r_sh_fixed}")
+    print(f"[OK] Right arm completely cleaned of bad weights: {r_arm_fixed} vertices!")
 
-    # Fix Left Shoulder
-    l_sh_fixed = 0
+    # 2. Complete Left Arm Cleanup (Protects left arm, elbow and bow grip)
+    l_arm_fixed = 0
     for v in body_main.data.vertices:
-        if v.co.x > 0.15 and v.co.z > 1.25:
+        if v.co.x > 0.18 and v.co.z > 0.75:
             removed = 0.0
             for g_entry in list(v.groups):
                 g_name = body_main.vertex_groups[g_entry.group].name
-                if g_name in ['spine_0', 'spine_1', 'clavicle_R', 'head', 'neck_0']:
+                if any(bad in g_name for bad in ['spine', 'pelvis', 'clavicle_R', 'head', 'neck', 'leg', '_R']):
                     removed += g_entry.weight
                     body_main.vertex_groups[g_entry.group].remove([v.index])
-            if removed > 0.01:
-                l_sh_fixed += 1
-                target = vg_cL if v.co.x < 0.28 else vg_auL
+                elif v.co.x >= 0.28 and 'clavicle' in g_name:
+                    removed += g_entry.weight
+                    body_main.vertex_groups[g_entry.group].remove([v.index])
+            if removed > 0.001:
+                l_arm_fixed += 1
+                if v.co.x > 0.47:
+                    target = vg_hL
+                elif v.co.x > 0.32:
+                    target = vg_alL
+                elif v.co.x < 0.26 and v.co.z > 1.25:
+                    target = vg_cL
+                else:
+                    target = vg_auL
                 try: cur = target.weight(v.index)
                 except: cur = 0.0
                 target.add([v.index], cur + removed, 'REPLACE')
-    print(f"[OK] Left shoulder verts cleaned: {l_sh_fixed}")
+    print(f"[OK] Left arm completely cleaned of bad weights: {l_arm_fixed} vertices!")
 
-    # Clean Left Hand (Solid closed fist holding bow grip - consolidate ALL fingers into hand_L!)
+    # 3. Clean Left Hand (Solid closed fist holding bow grip - consolidate ALL fingers into hand_L!)
     l_h_fixed = 0
     for v in body_main.data.vertices:
         if v.co.x > 0.47 and 0.85 < v.co.z < 1.25:
             finger_w = 0.0
             for g_entry in list(v.groups):
                 g_name = body_main.vertex_groups[g_entry.group].name
-                if any(k in g_name for k in ['finger', 'thumb', 'index', 'middle', 'ring', 'pinky', 'meta', 'leg']):
+                if any(k in g_name for k in ['finger', 'thumb', 'index', 'middle', 'ring', 'pinky', 'meta']):
                     finger_w += g_entry.weight
                     body_main.vertex_groups[g_entry.group].remove([v.index])
             if finger_w > 0.001:
@@ -486,13 +509,14 @@ def build_body():
                 vg_hL.add([v.index], cur + finger_w, 'REPLACE')
     print(f"[OK] Left hand (bow grip): {l_h_fixed} vertices consolidated into hand_L (solid fist, 0 finger tear!)")
 
+    # 4. Clean Right Hand
     r_h_fixed = 0
     for v in body_main.data.vertices:
         if v.co.x < -0.48 and 0.85 < v.co.z < 1.25:
             meta_w = 0.0
             for g_entry in list(v.groups):
                 g_name = body_main.vertex_groups[g_entry.group].name
-                if 'pinky' in g_name or 'meta' in g_name or 'leg' in g_name:
+                if 'pinky' in g_name or 'meta' in g_name:
                     meta_w += g_entry.weight
                     body_main.vertex_groups[g_entry.group].remove([v.index])
             if meta_w > 0.01:
